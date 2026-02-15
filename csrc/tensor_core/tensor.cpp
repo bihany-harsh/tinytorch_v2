@@ -17,3 +17,7 @@ void Tensor::fill_zeros() {
     }
     std::memset(storage->data_ptr(), 0, elem_count * dtype_size(dtype));
 }
+
+const std::vector<size_t>& Tensor::get_shape() const {
+    return shape;
+}

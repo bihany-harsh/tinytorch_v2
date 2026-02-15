@@ -1,7 +1,6 @@
 # TinyTorch (Notes and other commentary)
 
 ## TODOs:
-0. pybind setup so that python can process lists and provide raw data to cpp
 1. copy, move constructors to be created
 2. proper destructor
 3. test build
@@ -15,6 +14,8 @@
 
 ### Acknowledgement
 I am trying to use as little as AI-tools/chatbots (they are damn good) for this. I think it is a restrictive habit, one no coder should have (much like Instagram scrolling, fries your brain and your ability to think). However, wherever I shall use AI-generated code, I shall add a comment regarding the credits.
+
+I would say that this project is not AI-free as I do refer to Claude/GPT/Gemini often for system-design choices and questions about C++ semantics (where I have limited knowledge) rather than them writing code for me. Wherever they have contributed to my code, I try my best to include a comment about the same. As of this commit, they have written the build files (`CMakeLists.txt` and `setup.py` something I need to learn to write on my own soon).
 
 I am also trying my best to add credits to the code pieces I borrow from the internet (Stackoverflow, etc.).
 

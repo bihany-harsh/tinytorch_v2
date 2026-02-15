@@ -1,3 +1,4 @@
+# the setup.py file is written by Claude Sonnet-4.5 (Unextended) (as of this commit)
 import os
 import sys
 import shutil

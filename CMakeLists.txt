@@ -1,3 +1,5 @@
+# the CMakeLists.txt file is written by Claude Sonnet-4.5 (Unextended) (as of this commit)
+
 cmake_minimum_required(VERSION 3.15)
 project(tinytorch)
 

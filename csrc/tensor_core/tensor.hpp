@@ -34,9 +34,10 @@ switch(dtype) {                                                                 
         default:                                                                    \
             throw std::runtime_error("Unsupported dtype.") ;                        \
     }                                                                               
+// returning pointer instead of object suggested by Claude Sonnet-4.5 (otherwise there is a temporary object which is deleted shortly and an object that the python wrapper carries (after probably calling the copy(default) constructor and hence two (instead of one) instances of the same tensor. Pybind11 can handle returning both pointers and objects directly. Hence I think it is almost always preferable to return pointers within py::init (?)))
 
 // TODO: 
-// 1. copy, move constructors to be created
+// 1.5 testing the copy/move constructors and copy/move assignments
 // 2. proper destructor
 // 3. test build
 // 4. __repr__ completion
@@ -110,6 +111,9 @@ namespace tinytorch {
         }
 
     public:
+
+        const std::vector<size_t>& get_shape() const;
+
         Tensor(Dtype) {
             throw std::runtime_error("Empty tensor's not allowed");
         };
@@ -136,61 +140,108 @@ namespace tinytorch {
             fill_data(init_v);
         }
 
-        // DESTRUCTOR
-        ~Tensor() {
-            std::cout << "destroying the tensor" << std::endl;
-            
-            void* data_ptr = storage->data_ptr();
-            
-            switch (dtype) {
-                case Dtype::Float32: {
-                    f32* ptr = static_cast<f32*>(data_ptr);
-                    for (size_t i = 0; i < elem_count; i++) {
-                        std::cout << ptr[i] << " ";
-                    }
-                    break;
-                }
-                case Dtype::Float64: {
-                    f64* ptr = static_cast<f64*>(data_ptr);
-                    for (size_t i = 0; i < elem_count; i++) {
-                        std::cout << ptr[i] << " ";
-                    }
-                    break;
-                }
-                case Dtype::Int32: {
-                    i32* ptr = static_cast<i32*>(data_ptr);
-                    for (size_t i = 0; i < elem_count; i++) {
-                        std::cout << ptr[i] << " ";
-                    }
-                    break;
-                }
-                case Dtype::Int64: {
-                    i64* ptr = static_cast<i64*>(data_ptr);
-                    for (size_t i = 0; i < elem_count; i++) {
-                        std::cout << ptr[i] << " ";
-                    }
-                    break;
-                }
-                case Dtype::Bool: {
-                    bool* ptr = static_cast<bool*>(data_ptr);
-                    for (size_t i = 0; i < elem_count; i++) {
-                        std::cout << (ptr[i] ? "true" : "false") << " ";
-                    }
-                    break;
-                }
-                default:
-                    std::cout << "unknown dtype";
+        // default copy constructor makes adds a reference of the shared_ptr (Storage) and apparently makes a (hard) copy of the vector member objects!
+        // so we might need the copy constructor copy assignment operator but still
+
+        // copy constructor
+        Tensor(const Tensor& other) : 
+            storage(other.storage), // shared_ptr copy and hence increases the ref-count
+            dtype(other.dtype),
+            elem_count(other.elem_count),
+            shape(other.shape), // should be a deepcopy (default copy constructor behaviour of vector) and something which is not too bad
+            stride(other.stride) {}
+
+        
+        // move constructor
+        Tensor(Tensor &&other) noexcept: 
+            storage(std::move(other.storage)),
+            dtype(other.dtype),
+            elem_count(elem_count),
+            shape(std::move(other.shape)),
+            stride(std::move(other.stride)) {}
+
+        // copy assignment
+        Tensor& operator=(const Tensor& other) {
+            if (this != &other) {
+                storage = other.storage; // again should be (?) shared_ptr copy which is expected/required behavior
+                dtype = other.dtype;
+                elem_count = other.elem_count;
+                shape = other.shape;
+                stride = other.stride;
             }
-            
-            std::cout << std::endl;
-            std::cout << "shape: ";
-            for(const auto& el: shape) std::cout << el << " ";
-            std::cout << std::endl;
-            std::cout << "stride: ";
-            for(const auto& el: stride) std::cout << el << " ";
-            std::cout << std::endl;
-            std::cout << "dtype: ";
-            if (dtype == tinytorch::Dtype::Float32) std::cout << "dtype is Float32" << std::endl;
+
+            return *this;
         }
+
+        // move assignment 
+        Tensor& operator=(Tensor&& other) noexcept {
+            if (this != &other) {
+                storage = std::move(other.storage);
+                dtype = other.dtype;
+                elem_count = other.elem_count;
+                shape = std::move(other.shape);
+                stride = std::move(other.stride);
+            }
+
+            return *this;
+        }
+
+
+        // DESTRUCTOR
+        // ~Tensor() {
+        //     // std::cout << "destroying the tensor" << std::endl;
+            
+        //     // void* data_ptr = storage->data_ptr();
+            
+        //     // switch (dtype) {
+        //     //     case Dtype::Float32: {
+        //     //         f32* ptr = static_cast<f32*>(data_ptr);
+        //     //         for (size_t i = 0; i < elem_count; i++) {
+        //     //             std::cout << ptr[i] << " ";
+        //     //         }
+        //     //         break;
+        //     //     }
+        //     //     case Dtype::Float64: {
+        //     //         f64* ptr = static_cast<f64*>(data_ptr);
+        //     //         for (size_t i = 0; i < elem_count; i++) {
+        //     //             std::cout << ptr[i] << " ";
+        //     //         }
+        //     //         break;
+        //     //     }
+        //     //     case Dtype::Int32: {
+        //     //         i32* ptr = static_cast<i32*>(data_ptr);
+        //     //         for (size_t i = 0; i < elem_count; i++) {
+        //     //             std::cout << ptr[i] << " ";
+        //     //         }
+        //     //         break;
+        //     //     }
+        //     //     case Dtype::Int64: {
+        //     //         i64* ptr = static_cast<i64*>(data_ptr);
+        //     //         for (size_t i = 0; i < elem_count; i++) {
+        //     //             std::cout << ptr[i] << " ";
+        //     //         }
+        //     //         break;
+        //     //     }
+        //     //     case Dtype::Bool: {
+        //     //         bool* ptr = static_cast<bool*>(data_ptr);
+        //     //         for (size_t i = 0; i < elem_count; i++) {
+        //     //             std::cout << (ptr[i] ? "true" : "false") << " ";
+        //     //         }
+        //     //         break;
+        //     //     }
+        //     //     default:
+        //     //         std::cout << "unknown dtype";
+        //     // }
+            
+        //     // std::cout << std::endl;
+        //     // std::cout << "shape: ";
+        //     // for(const auto& el: shape) std::cout << el << " ";
+        //     // std::cout << std::endl;
+        //     // std::cout << "stride: ";
+        //     // for(const auto& el: stride) std::cout << el << " ";
+        //     // std::cout << std::endl;
+        //     // std::cout << "dtype: ";
+        //     // if (dtype == tinytorch::Dtype::Float32) std::cout << "dtype is Float32" << std::endl;
+        // }
     };
 }
